@@ -29,7 +29,7 @@ func theMain() {
 
 	// router goes last
 	nim.Use(router)
-	nim.Run(":8000")
+	nim.Run(":3000")
 }
 
 func mux_router() *mux.Router {
@@ -37,7 +37,7 @@ func mux_router() *mux.Router {
 	router.StrictSlash(true)
 	router.HandleFunc("/hello", helloHandlerFunc).Methods("GET")
 
-	bou := bounce.New(jwt.NewStorage())
+	bou := bounce.New(jwt.NewIdManager())
 	bou.Register("local", local.NewProvider())
 	bou.Register("local2", local.NewProvider())
 
@@ -53,6 +53,10 @@ func mux_router() *mux.Router {
 }
 
 func helloHandlerFunc(w http.ResponseWriter, r *http.Request) {
+
+	val := r.Header.Get("Cookie")
+	fmt.Println("... val = "+ val)
+
 	fmt.Fprintf(w, "Hello Hax!")
 	if value, ok := context.GetOk(r, "value"); ok {
 		fmt.Println("from helloHandlerFunc, value is " + value.(string))

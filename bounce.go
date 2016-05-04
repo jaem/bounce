@@ -6,24 +6,15 @@ import (
 	"fmt"
 )
 
-type Storage interface {
-	Load(*http.Request)
-	Save(http.ResponseWriter, *http.Request)
-}
-
-type Provider interface {
-	ResolveProvider(*http.Request)
-}
-
 type providerMap map[string]Provider
 
 type bounce struct {
-	storage Storage
-	pmap providerMap // Hashmap of providers used by server [string, Policy]
+	idm  IdManager   // identity manager (eg. jwt, session etc)
+	pmap providerMap // Hashmap of authoriy providers used by server [string, Policy]
 }
 
-func New(storage Storage) *bounce {
- return &bounce{ storage: storage, pmap: providerMap{} }
+func New(m IdManager) *bounce {
+	return &bounce{ idm: m, pmap:providerMap{} }
 }
 
 // Register adds a policy to the hashmap.
@@ -52,29 +43,35 @@ func (b *bounce) Authenticate(viders ...string) func(w http.ResponseWriter, r *h
 		}
 	}
 
-	// return a 404 error if a policy is not specified
-	if len(providers) == 0 {
-		return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-			http.NotFound(w, r)
-		}
-	}
-
 	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
 		fmt.Println("...... running authenticate ")
-
-		b.storage.Load(r)
-
-		for _, p := range providers {
-			b.pmap[p].ResolveProvider(r)
+		// return a 404 error if a policy is not specified
+		if len(providers) == 0 {
+			http.NotFound(w, r)
+			return
 		}
 
-		authenticated := false
-		if authenticated {
-			next(w, r)
-		} else {
-			http.NotFoundHandler()
+		id, err := b.idm.GetIdentity(w, r)
+		if err != nil {
+			// means id is probably not valid.
+			// lets get identity from various providers.
+			for _, p := range providers {
+				id, _ = b.pmap[p].ResolveProvider(r)
+				if id != nil {
+					break
+				}
+			}
 		}
+
+		if id == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// successfully authenticated
+		b.idm.SaveIdentity(id, w, r)
+
+		next(w, r)
 	}
 }
 

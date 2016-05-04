@@ -25,13 +25,15 @@ type Provider struct {
 	passwordField string
 }
 
-func (self *Provider) ResolveProvider(r *http.Request) {
+func (p *Provider) ResolveProvider(r *http.Request) (*bounce.Identity, error) {
 	fmt.Println("local provider")
 	if value, ok := context.GetOk(r, "value"); ok {
 		fmt.Println("from LocalProvider, value is " + value.(string))
 	} else {
 		fmt.Println("from LocalProvider, value is nil")
 	}
+
+	return &bounce.Identity{ Uid:"jaem", Access:"bah" }
 }
 
 
