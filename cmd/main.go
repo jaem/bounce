@@ -41,15 +41,25 @@ func mux_router() *mux.Router {
 	bou.Register("local", local.NewProvider())
 	bou.Register("local2", local.NewProvider())
 
-	authRoutes := mux.NewRouter()
-	authRoutes.HandleFunc("/auth/{userid}/login", authHandlerFunc)
-	router.PathPrefix("/auth").Handler(nimble.New().
-		UseHandlerFunc(bou.Authenticate("local")).
-		UseHandlerFunc(bou.Hoho).
-		Use(authRoutes),
+
+
+	userRoutes := mux.NewRouter()
+	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)
+	router.PathPrefix("/user").Handler(nimble.New().
+		UseHandlerFunc(bou.Reauthenticate).
+		Use(userRoutes),
 	)
 
 	return router
+}
+
+func profileHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Visiting my logged in profile page!")
+	if value, ok := context.GetOk(r, "value"); ok {
+		fmt.Println("from profile, value is " + value.(string))
+	}
+	// using mux
+	fmt.Println("from profile, the userid is " + mux.Vars(r)["userid"])
 }
 
 func helloHandlerFunc(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"reflect"
 	"fmt"
+	"github.com/jaem/nimble"
+	"golang.org/x/net/context"
+	"gopkg.in/check.v1"
 )
 
 type providerMap map[string]Provider
@@ -31,9 +34,30 @@ func (b *bounce) Deregister(key string) {
 	delete(b.pmap, key)
 }
 
+func (b *bounce) getIdentity(w http.ResponseWriter, r *http.Request) bool {
+	id, err := b.idm.GetIdentity(w, r)
+	if err != nil {
+		// go back to login page
+		return false
+	}
+
+	c := nimble.GetContext(r)
+	c = context.WithValue(c, "id", id)
+	nimble.SetContext(r, c)
+
+	return true
+}
+
+func (b* bounce) Reauthenticate(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	if b.getIdentity(w, r) {
+		next(w, r)
+	} else {
+		http.Redirect(w, r, "/auth/login", 301)
+	}
+}
+
 // Authenticate starts the authentication per request
 func (b *bounce) Authenticate(viders ...string) func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
 	// sanity check to ensure that policies are registered
 	var providers []string
 	for _, provi := range viders {
@@ -43,23 +67,25 @@ func (b *bounce) Authenticate(viders ...string) func(w http.ResponseWriter, r *h
 		}
 	}
 
+	// return a 404 error if a policy is not specified
+	if len(providers) == 0 {
+		Fatal(nothing to authenticate against)
+		return
+	}
+
 	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-		fmt.Println("...... running authenticate ")
-		// return a 404 error if a policy is not specified
-		if len(providers) == 0 {
-			http.NotFound(w, r)
-			return
+		if b.getIdentity(w, r) {
+			// already logged in
+			http.Redirect(w, r, "/", 200)
 		}
 
-		id, err := b.idm.GetIdentity(w, r)
-		if err != nil {
-			// means id is probably not valid.
-			// lets get identity from various providers.
-			for _, p := range providers {
-				id, _ = b.pmap[p].ResolveProvider(r)
-				if id != nil {
-					break
-				}
+		var id Identity
+		// means id is probably not valid.
+		// lets get identity from various providers.
+		for _, p := range providers {
+			id, _ := b.pmap[p].ResolveProvider(r)
+			if id != nil {
+				break
 			}
 		}
 
