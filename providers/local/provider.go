@@ -3,13 +3,13 @@ package local
 import (
 	"net/http"
 
-	"github.com/jaem/bounce"
+	"github.com/jaem/bouncer"
 	"fmt"
 	"github.com/gorilla/context"
 )
 
 //ensure that AuthHandler implements http.Handler
-var _ bounce.Provider = (*Provider)(nil)
+var _ bouncer.Provider = (*Provider)(nil)
 
 func NewProvider() *Provider {
 	p := &Provider{
@@ -25,7 +25,7 @@ type Provider struct {
 	passwordField string
 }
 
-func (p *Provider) ResolveProvider(r *http.Request) (*bounce.Identity, error) {
+func (p *Provider) ResolveProvider(r *http.Request) (*bouncer.Identity, error) {
 	fmt.Println("local provider")
 	if value, ok := context.GetOk(r, "value"); ok {
 		fmt.Println("from LocalProvider, value is " + value.(string))
@@ -33,7 +33,7 @@ func (p *Provider) ResolveProvider(r *http.Request) (*bounce.Identity, error) {
 		fmt.Println("from LocalProvider, value is nil")
 	}
 
-	return &bounce.Identity{ Uid:"jaem", Access:"some access" }, nil
+	return &bouncer.Identity{ Uid:"jaem", Access:"some access" }, nil
 }
 
 

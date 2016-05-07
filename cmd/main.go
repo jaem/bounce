@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jaem/bounce"
-	"github.com/jaem/bounce/providers/local"
+	"github.com/jaem/bouncer"
+	"github.com/jaem/bouncer/providers/local"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/jaem/nimble"
-	"github.com/jaem/bounce/storage/jwt"
-
+	"github.com/jaem/bouncer/storage/jwt"
 )
 
 func main() {
@@ -21,7 +20,7 @@ func main() {
 
 func theMain() {
 
-	bou := bounce.New(jwt.NewIdManager())
+	bou := bouncer.New(jwt.NewIdManager())
 	bou.Register("local", local.NewProvider())
 	bou.Register("local2", local.NewProvider())
 
@@ -41,7 +40,7 @@ func theMain() {
 	userRoutes := mux.NewRouter()
 	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)
 	router.PathPrefix("/user").Handler(nimble.New().
-		UseHandlerFunc(bounce.IsLoggedIn).
+		UseHandlerFunc(bouncer.IsLoggedIn).
 		Use(userRoutes),
 	)
 

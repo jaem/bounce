@@ -1,4 +1,4 @@
-package bounce
+package bouncer
 
 import (
 	"os"
@@ -16,17 +16,17 @@ var logger = log.New(os.Stdout, "[bounce.] ", 0)
 
 type providerMap map[string]Provider
 
-type Bounce struct {
+type Bouncer struct {
 	idm  IdManager   // identity manager (eg. jwt, session etc)
 	pmap providerMap // Hashmap of authoriy providers used by server [string, Policy]
 }
 
-func New(m IdManager) *Bounce {
-	return &Bounce{ idm: m, pmap:providerMap{} }
+func New(m IdManager) *Bouncer {
+	return &Bouncer{ idm: m, pmap:providerMap{} }
 }
 
 // Register adds a policy to the hashmap.
-func (b *Bounce) Register(key string, p Provider) {
+func (b *Bouncer) Register(key string, p Provider) {
 	if key == "" || p == nil {
 		logger.Println("Failed to registered provider: " + key + " using " + reflect.TypeOf(p).String())
 		return
@@ -36,12 +36,12 @@ func (b *Bounce) Register(key string, p Provider) {
 }
 
 // Deregister a policy from hashmap
-func (b *Bounce) Deregister(key string) {
+func (b *Bouncer) Deregister(key string) {
 	delete(b.pmap, key)
 }
 
 // IdentifyRequest gets the user identity for the request. Default method is jwt.
-func (b* Bounce) IdentifyRequest(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+func (b*Bouncer) IdentifyRequest(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	id, err := b.idm.GetIdentity(w, r)
 	if err != nil {
 		next(w, r)
@@ -55,7 +55,7 @@ func (b* Bounce) IdentifyRequest(w http.ResponseWriter, r *http.Request, next ht
 }
 
 // Authenticate starts the authentication per request
-func (b *Bounce) Authenticate(vider string) func(w http.ResponseWriter, r *http.Request) {
+func (b *Bouncer) Authenticate(vider string) func(w http.ResponseWriter, r *http.Request) {
 	// sanity check to ensure that policies are registered
 	//var providers []string
 	//for _, vider := range viders {

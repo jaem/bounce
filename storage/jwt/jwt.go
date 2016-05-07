@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jaem/bounce"
+	"github.com/jaem/bouncer"
 	"time"
 	"errors"
 	"fmt"
@@ -14,7 +14,7 @@ const defaultTTL = 3600 * 24 * 7 // 1 week
 const token_secret = "secret"
 
 //ensure that AuthHandler implements http.Handler
-var _ bounce.IdManager = (*IdManager)(nil)
+var _ bouncer.IdManager = (*IdManager)(nil)
 
 func NewIdManager() *IdManager {
 	return &IdManager{ fp: fingerprint{
@@ -36,7 +36,7 @@ type IdManager struct {
 	fp fingerprint
 }
 
-func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce.Identity, error) {
+func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bouncer.Identity, error) {
 	//req, _ := httputil.DumpRequest(r, false)
 	//fmt.Println(string(req))
 	token, err := getToken(r, m.fp)
@@ -44,7 +44,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce
 		// bad unverified jwt token -
 		return nil, err
 	}
-	id := new(bounce.Identity)
+	id := new(bouncer.Identity)
 	if val, ok := token.Claims["uid"].(string); val != "" && ok {
 		id.Uid = val
 	} else {
@@ -56,7 +56,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce
 	return id, nil
 }
 
-func (m *IdManager) SaveIdentity(id *bounce.Identity, w http.ResponseWriter, r *http.Request) {
+func (m *IdManager) SaveIdentity(id *bouncer.Identity, w http.ResponseWriter, r *http.Request) {
 	jwtToken, err := newSignedString(id, m.fp)
 	if err != nil {
 		fmt.Println("Unable to generate new jwtToken in jwt.IdManager.SaveIdentity")
@@ -101,7 +101,7 @@ unverified *jwt.Token) (interface{}, error) {
 // at time, and expiration time set on it.
 // Add claims to the Claims map and use the controller to sign digitally(token) to get
 // the a JWT byte slice
-func newSignedString(id *bounce.Identity, fp fingerprint) ([]byte, error) {
+func newSignedString(id *bouncer.Identity, fp fingerprint) ([]byte, error) {
 	token := jwt.New(fp.method)
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Duration(fp.ttl) * time.Second).Unix()
