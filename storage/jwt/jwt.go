@@ -8,7 +8,6 @@ import (
 	"time"
 	"errors"
 	"fmt"
-	"net/http/httputil"
 )
 
 const defaultTTL = 3600 * 24 * 7 // 1 week
@@ -38,8 +37,8 @@ type IdManager struct {
 }
 
 func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce.Identity, error) {
-	req, _ := httputil.DumpRequest(r, false)
-	fmt.Println(string(req))
+	//req, _ := httputil.DumpRequest(r, false)
+	//fmt.Println(string(req))
 	token, err := getToken(r, m.fp)
 	if err != nil {
 		// bad unverified jwt token -
@@ -63,7 +62,7 @@ func (m *IdManager) SaveIdentity(id *bounce.Identity, w http.ResponseWriter, r *
 		fmt.Println("Unable to generate new jwtToken in jwt.IdManager.SaveIdentity")
 		return
 	}
-	w.Header().Set("Set-Cookie", "jwt_token=" + string(jwtToken) + ";HttpOnly;")
+	w.Header().Set("Set-Cookie", "jwt_token=" + string(jwtToken) + ";HttpOnly;Path=/")
 	//w.Header().Set("Set-Cookie", "jwt_token=" + jwtToken + ";Secure;HttpOnly;") // https - need TLS (key, cert) during production
 	//w.Header().Set("Authorization", "Bearer " + jwtToken)
 }

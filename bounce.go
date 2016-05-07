@@ -1,13 +1,16 @@
 package bounce
 
 import (
+	"os"
+	"log"
+	"strconv"
 	"net/http"
 	"reflect"
-	"fmt"
 	"github.com/jaem/nimble"
 	"golang.org/x/net/context"
-	"gopkg.in/check.v1"
 )
+
+var logger = log.New(os.Stdout, "[bounce.] ", 0)
 
 type providerMap map[string]Provider
 
@@ -23,85 +26,83 @@ func New(m IdManager) *bounce {
 // Register adds a policy to the hashmap.
 func (b *bounce) Register(key string, p Provider) {
 	if key == "" || p == nil {
-		fmt.Println("Failed to registered provider: " + key + " using " + reflect.TypeOf(p).String())
+		logger.Println("Failed to registered provider: " + key + " using " + reflect.TypeOf(p).String())
 		return
 	}
 	b.pmap[key] = p
-	fmt.Println("Successfully registered provider: " + key + " using " + reflect.TypeOf(p).String())
+	logger.Println("Successfully registered provider: " + key + " using " + reflect.TypeOf(p).String())
 }
 
 func (b *bounce) Deregister(key string) {
 	delete(b.pmap, key)
 }
 
-func (b *bounce) getIdentity(w http.ResponseWriter, r *http.Request) bool {
+func (b* bounce) IdentifyRequest(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	id, err := b.idm.GetIdentity(w, r)
 	if err != nil {
-		// go back to login page
-		return false
+		next(w, r)
+		return
 	}
-
+	// TODO: validate userid with database
 	c := nimble.GetContext(r)
 	c = context.WithValue(c, "id", id)
 	nimble.SetContext(r, c)
 
-	return true
+	next(w, r)
 }
 
-func (b* bounce) Reauthenticate(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	if b.getIdentity(w, r) {
+
+// Check if there is an id in the context.
+func (b* bounce) isLoggedIn(r *http.Request) bool {
+	c := nimble.GetContext(r)
+	if id, ok := c.Value("id").(*Identity); ok {
+		logger.Println("identity.Uid = " + id.Uid)
+		return true
+	}
+	return false
+}
+
+func (b* bounce) IsLoggedIn(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	loggedIn := b.isLoggedIn(r)
+	logger.Println("isLoggedIn = " + strconv.FormatBool(loggedIn))
+	if loggedIn {
 		next(w, r)
-	} else {
-		http.Redirect(w, r, "/auth/login", 301)
+	} else { // no identity
+		//http.Redirect(w, r, "/auth/login", 301)
 	}
 }
 
 // Authenticate starts the authentication per request
-func (b *bounce) Authenticate(viders ...string) func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+func (b *bounce) Authenticate(vider string) func(w http.ResponseWriter, r *http.Request) {
 	// sanity check to ensure that policies are registered
-	var providers []string
-	for _, provi := range viders {
-		exist := b.pmap[provi]
-		if exist != nil {
-			providers = append(providers, provi)
-		}
+	//var providers []string
+	//for _, vider := range viders {
+	//	exist := b.pmap[vider]
+	//	if exist != nil {
+	//		providers = append(providers, vider)
+	//	}
+	//}
+
+	provider := b.pmap[vider]
+	if provider == nil {
+		//panic(errors.New("No authentication provider specified"))
+		return nil
 	}
 
-	// return a 404 error if a policy is not specified
-	if len(providers) == 0 {
-		Fatal(nothing to authenticate against)
-		return
-	}
-
-	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-		if b.getIdentity(w, r) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if b.isLoggedIn(r) {
 			// already logged in
 			http.Redirect(w, r, "/", 200)
+			return
 		}
 
-		var id Identity
-		// means id is probably not valid.
-		// lets get identity from various providers.
-		for _, p := range providers {
-			id, _ := b.pmap[p].ResolveProvider(r)
-			if id != nil {
-				break
-			}
-		}
-
-		if id == nil {
-			http.NotFound(w, r)
+		id, err := provider.ResolveProvider(r)
+		if err != nil || id == nil {
+			NotAuthorized(w, r) // unauthorized
 			return
 		}
 
 		// successfully authenticated
 		b.idm.SaveIdentity(id, w, r)
-
-		next(w, r)
 	}
-}
-
-func (b *bounce) Hoho(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	fmt.Println("hohohohoh")
-	next(w, r)
 }

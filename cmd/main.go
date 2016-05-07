@@ -21,36 +21,32 @@ func main() {
 
 func theMain() {
 
-	router := mux_router()
-
-	nim := nimble.Default()
-	nim.UseFunc(middlewareA)
-	nim.UseFunc(middlewareB)
-
-	// router goes last
-	nim.Use(router)
-	nim.Run(":3000")
-}
-
-func mux_router() *mux.Router {
-	router := mux.NewRouter()
-	router.StrictSlash(true)
-	router.HandleFunc("/hello", helloHandlerFunc).Methods("GET")
-
 	bou := bounce.New(jwt.NewIdManager())
 	bou.Register("local", local.NewProvider())
 	bou.Register("local2", local.NewProvider())
 
+	nim := nimble.Default()
+	nim.UseHandlerFunc(bou.IdentifyRequest)
+	//nim.UseFunc(middlewareA)
+	//nim.UseFunc(middlewareB)
 
+	router := mux.NewRouter()
+	router.StrictSlash(true)
+	router.HandleFunc("/hello", helloHandlerFunc).Methods("GET")
+
+	router.HandleFunc("/auth/login", authHandlerFunc).Methods("GET")
+	router.HandleFunc("/auth/login_post", bou.Authenticate("local")).Methods("GET")
 
 	userRoutes := mux.NewRouter()
 	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)
 	router.PathPrefix("/user").Handler(nimble.New().
-		UseHandlerFunc(bou.Reauthenticate).
+		UseHandlerFunc(bou.IsLoggedIn).
 		Use(userRoutes),
 	)
 
-	return router
+	// router goes last
+	nim.Use(router)
+	nim.Run(":3000")
 }
 
 func profileHandlerFunc(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +63,7 @@ func helloHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	val := r.Header.Get("Cookie")
 	fmt.Println("... val = "+ val)
 
-	fmt.Fprintf(w, "Hello Hax!")
+	fmt.Fprintf(w, "Hello world!")
 	if value, ok := context.GetOk(r, "value"); ok {
 		fmt.Println("from helloHandlerFunc, value is " + value.(string))
 	}
@@ -98,7 +94,7 @@ func middlewareB(w http.ResponseWriter, r *http.Request) {
 }
 
 func authHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Authed Hax!")
+	fmt.Fprintf(w, "Login page: key in user name and password !")
 	if value, ok := context.GetOk(r, "value"); ok {
 		fmt.Println("from authHandlerFunc, value is " + value.(string))
 	}

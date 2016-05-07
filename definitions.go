@@ -48,4 +48,6 @@ type Provider interface {
 	ResolveProvider(*http.Request) (*Identity, error)
 }
 
-
+func NotAuthorized(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "404 page not found", http.StatusUnauthorized)
+}
