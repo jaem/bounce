@@ -33,7 +33,7 @@ func (p *Provider) ResolveProvider(r *http.Request) (*bounce.Identity, error) {
 		fmt.Println("from LocalProvider, value is nil")
 	}
 
-	return &bounce.Identity{ Uid:"jaem", Access:"bah" }, nil
+	return &bounce.Identity{ Uid:"jaem", Access:"some access" }, nil
 }
 
 

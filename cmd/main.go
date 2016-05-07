@@ -32,6 +32,7 @@ func theMain() {
 
 	router := mux.NewRouter()
 	router.StrictSlash(true)
+	router.HandleFunc("/", helloHandlerFunc)
 	router.HandleFunc("/hello", helloHandlerFunc).Methods("GET")
 
 	router.HandleFunc("/auth/login", authHandlerFunc).Methods("GET")
@@ -40,7 +41,7 @@ func theMain() {
 	userRoutes := mux.NewRouter()
 	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)
 	router.PathPrefix("/user").Handler(nimble.New().
-		UseHandlerFunc(bou.IsLoggedIn).
+		UseHandlerFunc(bounce.IsLoggedIn).
 		Use(userRoutes),
 	)
 

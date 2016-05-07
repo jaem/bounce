@@ -57,7 +57,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce
 }
 
 func (m *IdManager) SaveIdentity(id *bounce.Identity, w http.ResponseWriter, r *http.Request) {
-	jwtToken, err := newSignedString(m.fp)
+	jwtToken, err := newSignedString(id, m.fp)
 	if err != nil {
 		fmt.Println("Unable to generate new jwtToken in jwt.IdManager.SaveIdentity")
 		return
@@ -101,12 +101,12 @@ unverified *jwt.Token) (interface{}, error) {
 // at time, and expiration time set on it.
 // Add claims to the Claims map and use the controller to sign digitally(token) to get
 // the a JWT byte slice
-func newSignedString(fp fingerprint) ([]byte, error) {
+func newSignedString(id *bounce.Identity, fp fingerprint) ([]byte, error) {
 	token := jwt.New(fp.method)
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Duration(fp.ttl) * time.Second).Unix()
-	token.Claims["uid"] = "dghubble"
-	token.Claims["access"] = "[{\"type\":\"repository\",\"action\":\"push\"}]"
+	token.Claims["uid"] = id.Uid
+	token.Claims["access"] =  id.Access //"[{\"type\":\"repository\",\"action\":\"push\"}]"
 	jwtString, err := token.SignedString(fp.key)
 	return []byte(jwtString), err
 }
