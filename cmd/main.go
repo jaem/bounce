@@ -10,22 +10,25 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/jaem/nimble"
-	"github.com/jaem/bouncer/storage/jwt"
+
 )
 
 func main() {
-	//trial.TestRouters()
+	//testMain()
 	theMain()
+}
+
+func testMain() {
+
 }
 
 func theMain() {
 
-	bou := bouncer.New(jwt.NewIdManager())
-	bou.Register("local", local.NewProvider())
-	bou.Register("local2", local.NewProvider())
+	bouncer.UseProvider("local", local.NewProvider())
+	bouncer.UseProvider("local2", local.NewProvider())
 
 	nim := nimble.Default()
-	nim.UseHandlerFunc(bou.IdentifyRequest)
+	nim.UseHandlerFunc(bouncer.RestoreSession)
 	//nim.UseFunc(middlewareA)
 	//nim.UseFunc(middlewareB)
 
@@ -35,7 +38,7 @@ func theMain() {
 	router.HandleFunc("/hello", helloHandlerFunc).Methods("GET")
 
 	router.HandleFunc("/auth/login", authHandlerFunc).Methods("GET")
-	router.HandleFunc("/auth/login_post", bou.Authenticate("local")).Methods("GET")
+	router.HandleFunc("/auth/login_post", bouncer.Authenticate("local")).Methods("GET")
 
 	userRoutes := mux.NewRouter()
 	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)

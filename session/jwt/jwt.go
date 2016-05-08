@@ -4,19 +4,19 @@ import (
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/jaem/bouncer"
 	"time"
 	"errors"
 	"fmt"
+	"github.com/jaem/bouncer/models"
 )
 
 const defaultTTL = 3600 * 24 * 7 // 1 week
 const token_secret = "secret"
 
 //ensure that AuthHandler implements http.Handler
-var _ bouncer.IdManager = (*IdManager)(nil)
+var _ models.ISession = (*IdManager)(nil)
 
-func NewIdManager() *IdManager {
+func NewSession() *IdManager {
 	return &IdManager{ fp: fingerprint{
 		key: []byte(token_secret),
 		method: jwt.SigningMethodHS256,
@@ -36,7 +36,7 @@ type IdManager struct {
 	fp fingerprint
 }
 
-func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bouncer.Identity, error) {
+func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*models.Identity, error) {
 	//req, _ := httputil.DumpRequest(r, false)
 	//fmt.Println(string(req))
 	token, err := getToken(r, m.fp)
@@ -44,7 +44,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce
 		// bad unverified jwt token -
 		return nil, err
 	}
-	id := new(bouncer.Identity)
+	id := new(models.Identity)
 	if val, ok := token.Claims["uid"].(string); val != "" && ok {
 		id.Uid = val
 	} else {
@@ -56,16 +56,21 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce
 	return id, nil
 }
 
-func (m *IdManager) SaveIdentity(id *bouncer.Identity, w http.ResponseWriter, r *http.Request) {
+func (m *IdManager) SaveIdentity(id *models.Identity, w http.ResponseWriter, r *http.Request) {
 	jwtToken, err := newSignedString(id, m.fp)
 	if err != nil {
 		fmt.Println("Unable to generate new jwtToken in jwt.IdManager.SaveIdentity")
 		return
 	}
-	w.Header().Set("Set-Cookie", "jwt_token=" + string(jwtToken) + ";HttpOnly;Path=/")
+	w.Header().Set("Set-Cookie", "jwt_token=" + string(jwtToken) + "; httponly; path=/;")
 	//w.Header().Set("Set-Cookie", "jwt_token=" + jwtToken + ";Secure;HttpOnly;") // https - need TLS (key, cert) during production
 	//w.Header().Set("Authorization", "Bearer " + jwtToken)
 }
+
+func (m *IdManager) DeleteIdentity(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Set-Cookie", "jwt_token=deleted; HttpOnly; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT")
+}
+
 
 // Based on https://github.com/dghubble/jwts/jwts.go
 // Get gets the signed JWT from the Authorization header. If the token is
@@ -101,7 +106,7 @@ unverified *jwt.Token) (interface{}, error) {
 // at time, and expiration time set on it.
 // Add claims to the Claims map and use the controller to sign digitally(token) to get
 // the a JWT byte slice
-func newSignedString(id *bouncer.Identity, fp fingerprint) ([]byte, error) {
+func newSignedString(id *models.Identity, fp fingerprint) ([]byte, error) {
 	token := jwt.New(fp.method)
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Duration(fp.ttl) * time.Second).Unix()

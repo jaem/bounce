@@ -1,12 +1,9 @@
-package bouncer
-
-import (
-	"net/http"
-)
+package models
 
 type Identity struct {
-	Uid		string
+	Uid			string
 	Access 	string
+	Store 	map[string]string // to store app specific data
 
 	//https://docs.docker.com/registry/spec/auth/jwt/
 	//iss (Issuer) The issuer of the token, typically the fqdn of the authorization server.
@@ -37,17 +34,4 @@ type Identity struct {
 	//	]
 	//}
 
-}
-
-type IdManager interface {
-	GetIdentity(http.ResponseWriter, *http.Request) (*Identity, error)
-	SaveIdentity(*Identity, http.ResponseWriter, *http.Request)
-}
-
-type Provider interface {
-	ResolveProvider(*http.Request) (*Identity, error)
-}
-
-func NotAuthorized(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "404 page not found", http.StatusUnauthorized)
 }
