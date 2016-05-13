@@ -1,4 +1,4 @@
-package models
+package bounce
 
 import "net/http"
 
@@ -11,8 +11,13 @@ type ProviderMap map[string]IProvider
 
 type Provider struct {}
 
-//func (ap *Provider) Complete(id *Identity) {
-//	if (err) { return self.error(err); }
-//	if (!user) { return self.fail(info); }
-//	self.success(user, info);
-//}
+func (ap *Provider) Complete(id *Identity) {
+
+	//if (err) { return self.error(err); }
+	//if (!user) { return self.fail(info); }
+	//self.success(user, info);
+}
+
+func (ap *Provider) error(err error) {
+
+}

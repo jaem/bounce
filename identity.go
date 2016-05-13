@@ -1,4 +1,4 @@
-package models
+package bounce
 
 type Identity struct {
 	Uid			string

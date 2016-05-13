@@ -7,14 +7,14 @@ import (
 	"time"
 	"errors"
 	"fmt"
-	"github.com/jaem/bouncer/models"
+	"github.com/jaem/bounce"
 )
 
 const defaultTTL = 3600 * 24 * 7 // 1 week
 const token_secret = "secret"
 
 //ensure that AuthHandler implements http.Handler
-var _ models.ISession = (*IdManager)(nil)
+var _ bounce.ISession = (*IdManager)(nil)
 
 func NewSession() *IdManager {
 	return &IdManager{ fp: fingerprint{
@@ -36,7 +36,7 @@ type IdManager struct {
 	fp fingerprint
 }
 
-func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*models.Identity, error) {
+func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*bounce.Identity, error) {
 	//req, _ := httputil.DumpRequest(r, false)
 	//fmt.Println(string(req))
 	token, err := getToken(r, m.fp)
@@ -44,7 +44,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*models
 		// bad unverified jwt token -
 		return nil, err
 	}
-	id := new(models.Identity)
+	id := new(bounce.Identity)
 	if val, ok := token.Claims["uid"].(string); val != "" && ok {
 		id.Uid = val
 	} else {
@@ -56,7 +56,7 @@ func (m *IdManager)	GetIdentity(w http.ResponseWriter, r *http.Request) (*models
 	return id, nil
 }
 
-func (m *IdManager) SaveIdentity(id *models.Identity, w http.ResponseWriter, r *http.Request) {
+func (m *IdManager) SaveIdentity(id *bounce.Identity, w http.ResponseWriter, r *http.Request) {
 	jwtToken, err := newSignedString(id, m.fp)
 	if err != nil {
 		fmt.Println("Unable to generate new jwtToken in jwt.IdManager.SaveIdentity")
@@ -70,7 +70,6 @@ func (m *IdManager) SaveIdentity(id *models.Identity, w http.ResponseWriter, r *
 func (m *IdManager) DeleteIdentity(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Set-Cookie", "jwt_token=deleted; HttpOnly; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT")
 }
-
 
 // Based on https://github.com/dghubble/jwts/jwts.go
 // Get gets the signed JWT from the Authorization header. If the token is
@@ -106,7 +105,7 @@ unverified *jwt.Token) (interface{}, error) {
 // at time, and expiration time set on it.
 // Add claims to the Claims map and use the controller to sign digitally(token) to get
 // the a JWT byte slice
-func newSignedString(id *models.Identity, fp fingerprint) ([]byte, error) {
+func newSignedString(id *bounce.Identity, fp fingerprint) ([]byte, error) {
 	token := jwt.New(fp.method)
 	token.Claims["iat"] = time.Now().Unix()
 	token.Claims["exp"] = time.Now().Add(time.Duration(fp.ttl) * time.Second).Unix()

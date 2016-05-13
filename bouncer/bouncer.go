@@ -3,31 +3,31 @@ package bouncer
 import (
 	"os"
 	"log"
-	"strconv"
+	"errors"
 	"net/http"
 	"reflect"
-	"github.com/jaem/nimble"
 	"golang.org/x/net/context"
-	"fmt"
-	"github.com/jaem/bouncer/session/jwt"
-	"github.com/jaem/bouncer/models"
+
+	"github.com/jaem/nimble"
+	"github.com/jaem/bounce"
+	"github.com/jaem/bounce/session/jwt"
 )
 
 var logger = log.New(os.Stdout, "[bounce.] ", 0)
 
 // identity manager (eg. jwt, session etc)
-var	session models.ISession
+var	session bounce.ISession
 
 // Hashmap of authoriy providers used by server [string, Policy]
-var providers models.ProviderMap
+var providers bounce.ProviderMap
 
 func init() {
 	session = jwt.NewSession()
-	providers = models.ProviderMap{}
+	providers = bounce.ProviderMap{}
 }
 
 // Register adds a policy to the hashmap.
-func UseProvider(key string, p models.IProvider) {
+func UseProvider(key string, p bounce.IProvider) {
 	if key == "" || p == nil {
 		logger.Println("Failed to registered provider: " + key + " using " + reflect.TypeOf(p).String())
 		return
@@ -44,11 +44,12 @@ func UnuseProvider(key string) {
 // IdentifyRequest gets the user identity for the request. Default method is jwt.
 func RestoreSession(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	id, err := session.GetIdentity(w, r)
-	if err != nil {
+	if err != nil || id == nil {
 		next(w, r)
 		return
 	}
-	// TODO: validate userid with database
+
+	// TODO: need to verify id??
 	c := nimble.GetContext(r)
 	c = context.WithValue(c, "id", id)
 	nimble.SetContext(r, c)
@@ -57,25 +58,16 @@ func RestoreSession(w http.ResponseWriter, r *http.Request, next http.HandlerFun
 
 // Disconnect an existing login
 func InvalidateSession(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("....... logging out")
 	session.DeleteIdentity(w, r)
 	onLogoutRedirect(w, r)
 }
 
 // Authenticate starts the authentication per request
 func Authenticate(vider string) func(w http.ResponseWriter, r *http.Request) {
-	// sanity check to ensure that policies are registered
-	//var providers []string
-	//for _, vider := range viders {
-	//	exist := b.pmap[vider]
-	//	if exist != nil {
-	//		providers = append(providers, vider)
-	//	}
-	//}
-
+	// sanity check to ensure that the policy has been registered
 	provider := providers[vider]
 	if provider == nil {
-		//panic(errors.New("No authentication provider specified"))
+		panic(errors.New("No authentication provider specified"))
 		return nil
 	}
 
@@ -101,9 +93,7 @@ func Authenticate(vider string) func(w http.ResponseWriter, r *http.Request) {
 
 // Checks if the user is logged in, before proceeding with the next handler
 func IsLoggedIn(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	loggedIn := isLoggedIn(r)
-	logger.Println("isLoggedIn = " + strconv.FormatBool(loggedIn))
-	if loggedIn {
+	if isLoggedIn(r) {
 		next(w, r)
 	} else { // no identity
 		onLoginRedirect(w, r)
@@ -113,7 +103,7 @@ func IsLoggedIn(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 // Check if there is an id in the context.
 func isLoggedIn(r *http.Request) bool {
 	c := nimble.GetContext(r)
-	if id, ok := c.Value("id").(*models.Identity); ok {
+	if id, ok := c.Value("id").(*bounce.Identity); ok {
 		logger.Println("identity.Uid = " + id.Uid)
 		return true
 	}

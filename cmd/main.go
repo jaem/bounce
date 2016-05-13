@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jaem/bouncer"
-	"github.com/jaem/bouncer/providers/local"
+	"github.com/jaem/bounce"
+	"github.com/jaem/bounce/bouncer"
+	"github.com/jaem/bounce/providers/local"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/jaem/nimble"
-
 )
 
 func main() {
@@ -18,14 +18,17 @@ func main() {
 	theMain()
 }
 
-func testMain() {
-
+var verify = func(username string, password string) (*bounce.Identity, error) {
+	// check db
+	//return true, nil
+	//return false, errors.New("Wrong user name or password")
+	return &bounce.Identity{ Uid: username, Access:"some access" }, nil
 }
 
 func theMain() {
 
-	bouncer.UseProvider("local", local.NewProvider())
-	bouncer.UseProvider("local2", local.NewProvider())
+	bouncer.UseProvider("local", local.NewProvider(verify))
+	bouncer.UseProvider("local2", local.NewProvider(verify))
 
 	nim := nimble.Default()
 	nim.UseHandlerFunc(bouncer.RestoreSession)
@@ -39,6 +42,7 @@ func theMain() {
 
 	router.HandleFunc("/auth/login", authHandlerFunc).Methods("GET")
 	router.HandleFunc("/auth/login_post", bouncer.Authenticate("local")).Methods("GET")
+	router.HandleFunc("/auth/logout_post", bouncer.InvalidateSession).Methods("GET")
 
 	userRoutes := mux.NewRouter()
 	userRoutes.HandleFunc("/user/{userid}/profile", profileHandlerFunc)

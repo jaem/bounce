@@ -3,29 +3,34 @@ package local
 import (
 	"net/http"
 
-	"github.com/jaem/bouncer/models"
+	"github.com/jaem/bounce"
 	"fmt"
+	"errors"
 )
 
 //ensure that AuthHandler implements http.Handler
-var _ models.IProvider = (*Provider)(nil)
+var _ bounce.IProvider = (*Provider)(nil)
 
-func NewProvider() *Provider {
+type VerifyFunc func(username string, password string) (*bounce.Identity, error)
+
+func NewProvider(fn VerifyFunc) *Provider {
 	p := &Provider{
 		usernameField: "username",
 		passwordField: "password",
+		verify: fn,
 	}
 
 	return p
 }
 
 type Provider struct {
-	*models.Provider
+	*bounce.Provider
 	usernameField string
 	passwordField string
+	verify VerifyFunc
 }
 
-func (p *Provider) ResolveProvider(r *http.Request) (*models.Identity, error) {
+func (p *Provider) ResolveProvider(r *http.Request) (*bounce.Identity, error) {
 	username := r.PostFormValue("username")
 	password := r.PostFormValue("password")
 
@@ -33,9 +38,15 @@ func (p *Provider) ResolveProvider(r *http.Request) (*models.Identity, error) {
 	fmt.Println("password = " + password)
 
 	if username == "" || password == "" {
-		//return this.fail({ message: options.badRequestMessage || 'Missing credentials' }, 400);
+		return nil, errors.New("Missing credentials")
 	}
 
-	return &models.Identity{ Uid: username, Access:"some access" }, nil
+	identity, err := p.verify(username, password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return identity, nil
 }
 
